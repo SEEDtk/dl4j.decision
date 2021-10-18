@@ -136,7 +136,7 @@ public class RandomForest implements Serializable {
         public Parms() {
             this.nTrees = 50;
             this.nFeatures = 10;
-            this.leafLimit = 1;
+            this.leafLimit = 0;
             this.nExamples = 1000;
             this.method = Method.RANDOM;
             this.maxDepth = 50;
