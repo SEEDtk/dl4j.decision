@@ -438,7 +438,7 @@ public class RandomForest implements Serializable {
             ObjectInputStream inStream = new ObjectInputStream(fileStream);
             retVal = (RandomForest) inStream.readObject();
         } catch (ClassNotFoundException e) {
-            throw new IOException("Invalid format for " + loadFile + ": " + e.getMessage());
+            throw new IOException("Invalid format for " + loadFile + ": " + e.toString());
         }
         return retVal;
     }

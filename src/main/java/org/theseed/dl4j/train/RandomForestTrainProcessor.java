@@ -156,7 +156,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
                 retVal = true;
             }
         } catch (IOException e) {
-            System.err.println(e.getMessage());
+            System.err.println(e.toString());
         }
         return retVal;
     }
