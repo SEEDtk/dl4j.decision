@@ -45,9 +45,7 @@ import org.theseed.reports.TestValidationReport;
 import org.theseed.utils.ParseFailureException;
 
 /**
- * This is the base class for anything that trains a model.  Unlike LearningProcessor, the model does
- * not have to be a neural net, nor does it require an iterative search.  In addition, the hyper-parameters
- * are dramatically different.
+ * This class represents a random-forest model.  This is the fastest and simplest of the three main ML models.
  *
  * The positional parameter is the name of the model directory.  The directory should contain the training data
  * in the file "training.tbl" and the label values in the file "labels.txt".  The model itself will be stored
