@@ -10,6 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
@@ -17,11 +18,13 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.theseed.dl4j.TabbedDataSetReader;
 import org.theseed.dl4j.train.ClassPredictError;
 import org.theseed.utils.IDescribable;
 
@@ -462,5 +465,39 @@ public class RandomForest implements Serializable {
     public static void flattenDataSet(DataSet dataset) {
         dataset.setFeatures(flattenFeatures(dataset.getFeatures()));
     }
+
+	/**
+	 * Apply the model to an input file to make predictions, and write them to an output file.
+	 * 
+	 * @param inFile		input file containing samples
+	 * @param outFile		output file for predictions
+	 * @param metaCols		list of metadata column names
+	 * 
+	 * @throws IOException
+	 */
+	public void makePredictions(File inFile, File outFile, List<String> metaCols, List<String> labels) 
+			throws IOException {
+		// Open the input and output files.
+		TabbedDataSetReader batches = new TabbedDataSetReader(inFile, metaCols);
+		try (PrintWriter writer = new PrintWriter(outFile)) {
+			// Write the output header.
+			writer.println(StringUtils.join(metaCols, '\t') + "\tpredicted");
+			// Loop through the input data.
+			for (DataSet batch : batches) {
+				// Get the features in this batch.
+	            INDArray features = RandomForest.flattenFeatures(batch.getFeatures());
+	            // Make the predictions and extract the metadata values.
+	            INDArray output = this.predict(features);
+	            List<String> metaRows = batch.getExampleMetaData(String.class);
+	            // Now we write the output rows.
+	            for (int i = 0; i < features.rows(); i++) {
+	            	int labelIdx = ClassPredictError.computeBest(output, i);
+	            	writer.println(metaRows.get(i) + "\t" + labels.get(labelIdx));
+	            }
+			}
+		} finally {
+			batches.close();
+		}
+	}
 
 }
