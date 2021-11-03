@@ -69,7 +69,7 @@ import org.theseed.utils.ParseFailureException;
  * --method			randomization method (BALANCED, UNIQUE, RANDOM)
  * --maxFeatures	number of features to use at each tree node
  * --nEstimators	number of trees in the forest
- * --minSplit		minimum number of examples allowed in a choice node
+ * --minSplit		minimum number of examples allowed in a leaf node
  * --maxDepth		maximum tree depth
  * --sampleSize		number of examples to use for each tree's subset
  * --selection		feature selection mode (default NORMAL)
@@ -113,7 +113,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
     private int maxFeatures;
 
     /** minimum number of examples allowed in a choice node */
-    @Option(name = "--minSplit", metaVar = "2", usage = "minimum number of examples allowed in a splitting tree node")
+    @Option(name = "--minSplit", metaVar = "2", usage = "minimum number of examples allowed in a leaf node")
     private int minSplit;
 
     /** number of trees in the forest */
@@ -399,7 +399,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
        writer.format("# Valid randomization methods are %s.%n", typeList);
        writer.format("--method %s\t# randomization method for picking subsamples%n", this.method);
        writer.format("--maxFeatures %d\t# number of features to check at each tree node%n", this.maxFeatures);
-       writer.format("--minSplit %d\t# minimum number of examples allowed in a splitting tree node%n", this.minSplit);
+       writer.format("--minSplit %d\t# minimum number of examples allowed in a leaf node%n", this.minSplit);
        writer.format("--nEstimators %d\t# number of trees in the forest%n", this.nEstimators);
        writer.format("--maxDepth %d\t# maximum allowable tree depth%n", this.maxDepth);
        writer.format("--sampleSize %d\t# number of examples to use in each subsample%n", this.sampleSize);
@@ -493,7 +493,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
         // Copy the parameters to the hyper-parameters.
         this.hParms = new RandomForest.Parms();
         this.hParms.setMethod(this.method);
-        this.hParms.setLeafLimit(this.minSplit - 1);
+        this.hParms.setLeafLimit(this.minSplit);
         this.hParms.setMaxDepth(this.maxDepth);
         this.hParms.setNumExamples(this.sampleSize);
         this.hParms.setNumFeatures(this.maxFeatures);
@@ -524,7 +524,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
         this.method = hyperParms.getMethod();
         this.maxDepth = hyperParms.getMaxDepth();
         this.nEstimators = hyperParms.getNumTrees();
-        this.minSplit = hyperParms.getLeafLimit() + 1;
+        this.minSplit = hyperParms.getLeafLimit();
         this.maxFeatures = hyperParms.getNumFeatures();
         this.sampleSize = hyperParms.getNumExamples();
     }

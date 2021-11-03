@@ -139,7 +139,7 @@ public class RandomForest implements Serializable {
         public Parms() {
             this.nTrees = 50;
             this.nFeatures = 10;
-            this.leafLimit = 0;
+            this.leafLimit = 1;
             this.nExamples = 1000;
             this.method = Method.RANDOM;
             this.maxDepth = 50;
@@ -466,38 +466,38 @@ public class RandomForest implements Serializable {
         dataset.setFeatures(flattenFeatures(dataset.getFeatures()));
     }
 
-	/**
-	 * Apply the model to an input file to make predictions, and write them to an output file.
-	 * 
-	 * @param inFile		input file containing samples
-	 * @param outFile		output file for predictions
-	 * @param metaCols		list of metadata column names
-	 * 
-	 * @throws IOException
-	 */
-	public void makePredictions(File inFile, File outFile, List<String> metaCols, List<String> labels) 
-			throws IOException {
-		// Open the input and output files.
-		TabbedDataSetReader batches = new TabbedDataSetReader(inFile, metaCols);
-		try (PrintWriter writer = new PrintWriter(outFile)) {
-			// Write the output header.
-			writer.println(StringUtils.join(metaCols, '\t') + "\tpredicted");
-			// Loop through the input data.
-			for (DataSet batch : batches) {
-				// Get the features in this batch.
-	            INDArray features = RandomForest.flattenFeatures(batch.getFeatures());
-	            // Make the predictions and extract the metadata values.
-	            INDArray output = this.predict(features);
-	            List<String> metaRows = batch.getExampleMetaData(String.class);
-	            // Now we write the output rows.
-	            for (int i = 0; i < features.rows(); i++) {
-	            	int labelIdx = ClassPredictError.computeBest(output, i);
-	            	writer.println(metaRows.get(i) + "\t" + labels.get(labelIdx));
-	            }
-			}
-		} finally {
-			batches.close();
-		}
-	}
+    /**
+     * Apply the model to an input file to make predictions, and write them to an output file.
+     *
+     * @param inFile		input file containing samples
+     * @param outFile		output file for predictions
+     * @param metaCols		list of metadata column names
+     *
+     * @throws IOException
+     */
+    public void makePredictions(File inFile, File outFile, List<String> metaCols, List<String> labels)
+            throws IOException {
+        // Open the input and output files.
+        TabbedDataSetReader batches = new TabbedDataSetReader(inFile, metaCols);
+        try (PrintWriter writer = new PrintWriter(outFile)) {
+            // Write the output header.
+            writer.println(StringUtils.join(metaCols, '\t') + "\tpredicted");
+            // Loop through the input data.
+            for (DataSet batch : batches) {
+                // Get the features in this batch.
+                INDArray features = RandomForest.flattenFeatures(batch.getFeatures());
+                // Make the predictions and extract the metadata values.
+                INDArray output = this.predict(features);
+                List<String> metaRows = batch.getExampleMetaData(String.class);
+                // Now we write the output rows.
+                for (int i = 0; i < features.rows(); i++) {
+                    int labelIdx = ClassPredictError.computeBest(output, i);
+                    writer.println(metaRows.get(i) + "\t" + labels.get(labelIdx));
+                }
+            }
+        } finally {
+            batches.close();
+        }
+    }
 
 }
