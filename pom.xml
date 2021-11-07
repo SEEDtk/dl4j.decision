@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <name>dl4j.decisions</name>
   <properties>
-      <nd4j.version>1.0.0-beta4</nd4j.version>
+      <nd4j.version>1.0.0-M1.1</nd4j.version>
       <logback.version>1.2.3</logback.version>
   </properties>
   <description>Library for RandomForest-only projects</description>

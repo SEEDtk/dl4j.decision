@@ -36,8 +36,9 @@ public class SequentialSplitPointFinder extends SplitPointFinder {
             for (DataSet row : rows) {
                 double value = row.getFeatures().getDouble(iFeature);
                 INDArray valueGroup = rowMap.computeIfAbsent(value, v -> Nd4j.zeros(nClasses));
-                valueGroup.addi(row.getLabels());
-                rightLabelSums.addi(row.getLabels());
+                // We use ravel here to convert a 1-row matrix to a vector.
+                valueGroup.addi(row.getLabels().ravel());
+                rightLabelSums.addi(row.getLabels().ravel());
             }
             // Start with the first value on the left.  Eliminate it from the right label sums.
             Iterator<Map.Entry<Double, INDArray>> iter = rowMap.entrySet().iterator();

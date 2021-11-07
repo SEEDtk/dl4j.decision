@@ -58,7 +58,9 @@ public class Splitter implements Comparable<Splitter> {
         INDArray leftLabels = Nd4j.zeros(nClasses);
         INDArray rightLabels = Nd4j.zeros(nClasses);
         for (DataSet row : data) {
-            INDArray labelArray = row.getLabels();
+            // We need the ravel here because the labels variables are vectors, and getLabels() returns
+            // a single-row matrix.
+            INDArray labelArray = row.getLabels().ravel();
             if (row.getFeatures().getDouble(feature) <= limit)
                 leftLabels.addi(labelArray);
             else
