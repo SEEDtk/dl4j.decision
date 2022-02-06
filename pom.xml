@@ -6,7 +6,7 @@
   <name>dl4j.decisions</name>
   <properties>
       <nd4j.version>1.0.0-M1.1</nd4j.version>
-      <logback.version>1.2.3</logback.version>
+      <logback.version>1.2.10</logback.version>
       <maven.compiler.source>11</maven.compiler.source>
       <maven.compiler.target>11</maven.compiler.target>
   </properties>
