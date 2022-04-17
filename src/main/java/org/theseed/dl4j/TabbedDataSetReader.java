@@ -32,7 +32,7 @@ import org.theseed.io.TabbedLineReader;
  * @author Bruce Parrello
  *
  */
-public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet> {
+public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet>, AutoCloseable {
 
     // FIELDS
     /** input tabbed file */
@@ -458,6 +458,7 @@ public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet>
     /**
      * Close this dataset reader.
      */
+    @Override
     public void close() {
         this.reader.close();
     }
