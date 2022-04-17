@@ -220,10 +220,9 @@ public abstract class ModelProcessor {
             // Here we have channel input.
             File channelFile = new File(this.modelDir, "channels.tbl");
             Map<String, double[]> channelMap = ChannelDataSetReader.readChannelFile(channelFile);
-            ChannelDataSetReader myReader = new ChannelDataSetReader(inFile, labelCol,
+            retVal = new ChannelDataSetReader(inFile, labelCol,
                     this.getLabels(), this.metaList, channelMap);
-            this.channelCount = myReader.getChannels();
-            retVal = myReader;
+            this.channelCount = ((ChannelDataSetReader) retVal).getChannels();
             log.info("Channel input with {} channels from {}.", this.getChannelCount(), inFile);
         }
         return retVal;
@@ -248,10 +247,9 @@ public abstract class ModelProcessor {
             // Here we have channel input.
             File channelFile = new File(this.modelDir, "channels.tbl");
             Map<String, double[]> channelMap = ChannelDataSetReader.readChannelFile(channelFile);
-            ChannelDataSetReader myReader = new ChannelDataSetReader(strings, labelCol,
+            retVal = new ChannelDataSetReader(strings, labelCol,
                     this.getLabels(), this.metaList, channelMap);
-            this.channelCount = myReader.getChannels();
-            retVal = myReader;
+            this.channelCount = ((ChannelDataSetReader) retVal).getChannels();
         }
         return retVal;
     }
