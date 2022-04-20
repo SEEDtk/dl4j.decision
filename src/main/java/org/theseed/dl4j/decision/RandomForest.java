@@ -338,10 +338,8 @@ public class RandomForest implements Serializable {
      *
      * @param dataset	training set to process
      * @param hParms	hyper-parameters
-     *
-     * @throws IOException
      */
-    public RandomForest(DataSet dataset, Parms hParms) throws IOException {
+    public RandomForest(DataSet dataset, Parms hParms) {
         this.nLabels = dataset.numOutcomes();
         Iterator<TreeFeatureSelectorFactory> treeIter = new NormalTreeFeatureSelectorFactory(rand.nextLong(),
                 dataset.numInputs(), hParms.getNumFeatures(), hParms.getNumTrees());
