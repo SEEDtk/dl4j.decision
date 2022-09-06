@@ -3,7 +3,7 @@
   <groupId>org.theseed</groupId>
   <artifactId>dl4j.decision</artifactId>
   <version>1.0.0</version>
-  <name>dl4j.decisions</name>
+  <name>dl4j.decision</name>
   <properties>
       <nd4j.version>1.0.0-M1.1</nd4j.version>
       <logback.version>1.2.10</logback.version>
@@ -35,7 +35,12 @@
     <dependency>
         <groupId>org.theseed</groupId>
         <artifactId>p3api</artifactId>
-        <version>0.0.1</version>
+        <version>1.0.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.theseed</groupId>
+        <artifactId>shared</artifactId>
+        <version>1.0.0</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/args4j/args4j -->
     <dependency>
