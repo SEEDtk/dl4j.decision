@@ -1,9 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.theseed</groupId>
   <artifactId>dl4j.decision</artifactId>
-  <version>1.0.0</version>
   <name>dl4j.decision</name>
+    <parent>
+        <groupId>org.theseed</groupId>
+        <artifactId>brc.parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
   <properties>
       <nd4j.version>1.0.0-M1.1</nd4j.version>
       <logback.version>1.2.10</logback.version>
