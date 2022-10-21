@@ -309,7 +309,7 @@ public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet>
         ArrayList<String> metaData = (haveMeta ? new ArrayList<String>(this.getBuffer().size()) : null);
         int row = 0;
         for (Entry record : this.getBuffer()) {
-            features.putRow(row, formatFeature(record));
+            storeFeature(features, row, record);
             if (haveLabels) {
                 labels.putRow(row, record.labelVals);
             }
@@ -329,27 +329,27 @@ public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet>
 
     /**
      * This is the method for formatting features into an example row.  Each input column
-     * is converted to a vector of floating-point numbers.
+     * is converted to a vector of floating-point numbers and stored in the specified row of the
+     * feature matrix.
      *
+     * @param features	feature matrix
+     * @param row		target row index
      * @param record	record containing the input strings
      *
      * @return an array representing a single feature
      */
-    protected INDArray formatFeature(Entry record) {
+    protected void storeFeature(INDArray features, int row, Entry record) {
         // Create the output array:  one row for each channel (depth), one column for each input column, and a unit height in the middle.
-        int[] indices = new int[] { this.getChannels(), 1, this.getWidth() };
-        INDArray retVal = Nd4j.createUninitialized(indices);
-        // Set the indices for use below.
-        indices[1] = 0;
+        int[] indices = new int[] { row, 0, 0, 0 };
+        // Loop through the indices, copying values.
         for (int i = 0; i < this.getWidth(); i++) {
-            indices[2] = i;
+            indices[3] = i;
             double[] vector = this.stringToVector(record.feature[i]);
             for (int j = 0; j < this.getChannels(); j++) {
-                indices[0] = j;
-                retVal.putScalar(indices, vector[j]);
+                indices[1] = j;
+                features.putScalar(indices, vector[j]);
             }
         }
-        return retVal;
     }
 
     /**
