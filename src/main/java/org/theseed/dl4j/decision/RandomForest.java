@@ -320,14 +320,18 @@ public class RandomForest implements Serializable {
         this.factoryIter = factoryIter;
         this.randomizer = parms.getRandomizer();
         // Initialize the randomizer.
+        log.debug("Initializing randomizer for {} examples.", this.parms.getNumExamples());
         this.randomizer.initializeData(this.nLabels, this.parms.getNumExamples(), dataset);
         // Create an array of randomizer seeds.
+        log.debug("Initializing seeds for {} trees.", this.parms.getNumTrees());
         long[] seeds = rand.longs(this.parms.getNumTrees()).toArray();
         // Create an array of tree selector factories.  This is a sequential operation, so we have to do it here,
         // not in the parallel stream below.
+        log.debug("Creating factories.");
         TreeFeatureSelectorFactory[] factories = IntStream.range(0, this.parms.getNumTrees())
                 .mapToObj(i -> this.factoryIter.next()).toArray(TreeFeatureSelectorFactory[]::new);
         // Create the decision trees in the random forest.
+        log.debug("Creating trees.");
         this.trees = IntStream.range(0, this.parms.getNumTrees()).parallel()
                 .mapToObj(i -> this.buildTree(i, seeds[i], factories[i]))
                 .collect(Collectors.toList());
