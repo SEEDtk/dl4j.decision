@@ -10,9 +10,9 @@ import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
 
 /**
- * This class contains a proposal for splitting a choice node.  The best splitter has
- * the highest information gain.  Note that this is not a set-capable ordering, since
- * two different split schemes can compare equal.
+ * This class contains a proposal for splitting a choice node in a decision tree.  The best
+ * splitter has the highest information gain.  Note that this is not a set-capable ordering,
+ * since two different split schemes can compare equal.
  */
 public class Splitter implements Comparable<Splitter> {
 
