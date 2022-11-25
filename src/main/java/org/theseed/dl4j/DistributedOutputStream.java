@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
+import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.train.ITrainingProcessor;
-import org.theseed.io.Shuffler;
 
 /**
  * This is ia class that produces a scrambled output stream for deep learning.  It buffers the entire stream in memory
