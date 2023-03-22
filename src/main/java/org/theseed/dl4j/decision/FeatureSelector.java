@@ -4,7 +4,6 @@
 package org.theseed.dl4j.decision;
 
 import java.util.Random;
-import java.util.stream.IntStream;
 
 /**
  * This object determines the list of features and the split point finder that should be used at a decision tree
@@ -76,20 +75,20 @@ public abstract class FeatureSelector {
         /**
          * Construct a multiple-feature selector.
          *
-         * @param nFeatures		number of input features available
+         * @param idxes			array of input features to select from
          * @param nSelect		nubmer of features to select from the available list
          * @param randomizer	random-number generator to use
          */
-        public Multiple(int nFeatures, int nSelect, Random randomizer) {
-            // Get all the possible feature indices in an array.
-            int[] range = IntStream.range(0, nFeatures).toArray();
+        public Multiple(int[] idxes, int nSelect, Random randomizer) {
+            // Get all the possible feature indices in a modifiable array.
+            int[] range = idxes.clone();
             // Insure our selection size is in range.
-            if (nSelect > nFeatures) nSelect = nFeatures - 1;
+            if (nSelect > idxes.length) nSelect = idxes.length - 1;
             // Form the output array.
             int[] choices = new int[nSelect];
             // Loop through the range array, picking random items.
             for (int i = 0; i < nSelect; i++) {
-                int rand = randomizer.nextInt(nFeatures - i);
+                int rand = randomizer.nextInt(range.length - i);
                 choices[i] = range[rand + i];
                 range[rand + i] = range[i];
             }

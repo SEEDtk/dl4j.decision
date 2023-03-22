@@ -93,6 +93,8 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
     private SortedSet<Rating<String>> impact;
     /** tree feature selection factory iterator */
     private Iterator<TreeFeatureSelectorFactory> factoryIter;
+    /** array of non-trivial feature indices */
+    private int[] usefulFeatureIdxes;
 
     // COMMAND-LINE OPTIONS
 
@@ -178,6 +180,8 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
             RandomForest.flattenDataSet(this.testingSet);
             // Now we read the training set.
             DataSet trainingSet = this.readTrainingSet();
+            // Find all the nontrivial features in the training set.
+            this.usefulFeatureIdxes = RandomForest.getUsefulFeatures(trainingSet);
             // Build the model from the training set.
             long start = System.currentTimeMillis();
             log.info("Creating selection factories");
@@ -557,6 +561,13 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
         File impactFile = new File(this.modelDir, this.rootFile);
         List<String> retVal = TabbedLineReader.readColumn(impactFile, "1");
         return retVal;
+    }
+
+    /**
+     * @return an array of nontrivial feature indices
+     */
+    public int[] getUsefulFeatureArray() {
+        return this.usefulFeatureIdxes;
     }
 
 }

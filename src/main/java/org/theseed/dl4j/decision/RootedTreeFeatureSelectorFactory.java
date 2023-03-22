@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 import org.theseed.dl4j.train.RandomForestTrainProcessor;
 
@@ -39,9 +40,10 @@ public class RootedTreeFeatureSelectorFactory implements Iterator<TreeFeatureSel
             FeatureSelector retVal;
             if (depth == 0)
                 retVal = new FeatureSelector.Single(rootIdx);
-            else
-                retVal = new FeatureSelector.Multiple(RootedTreeFeatureSelectorFactory.this.nCols,
-                        RootedTreeFeatureSelectorFactory.this.nSelect, this.getRandomizer());
+            else {
+                int[] idxes = IntStream.range(0, RootedTreeFeatureSelectorFactory.this.nCols).filter(i -> i != rootIdx).toArray();
+                retVal = new FeatureSelector.Multiple(idxes, RootedTreeFeatureSelectorFactory.this.nSelect, this.getRandomizer());
+            }
             return retVal;
         }
 

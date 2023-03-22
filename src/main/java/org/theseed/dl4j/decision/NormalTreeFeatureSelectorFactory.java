@@ -32,7 +32,7 @@ public class NormalTreeFeatureSelectorFactory implements Iterator<TreeFeatureSel
 
         @Override
         public FeatureSelector getSelector(int depth) {
-            return new FeatureSelector.Multiple(NormalTreeFeatureSelectorFactory.this.nCols,
+            return new FeatureSelector.Multiple(NormalTreeFeatureSelectorFactory.this.idxes,
                     NormalTreeFeatureSelectorFactory.this.numFeatures, this.getRandomizer());
         }
     }
@@ -44,25 +44,25 @@ public class NormalTreeFeatureSelectorFactory implements Iterator<TreeFeatureSel
     private Random rand;
     /** number of features to select at each node */
     private int numFeatures;
-    /** number of input columns for the model */
-    private int nCols;
     /** number of trees to output */
     private int nTrees;
+    /** array of nontrivial input column indices */
+    private int[] idxes;
 
     /**
      * Construct this selector factory.
      *
      * @param randSeed		randomizer seed
-     * @param numCols		number of input columns
+     * @param idxCols		array of nontrival input column indices
      * @param numSelect		number of features to select for each tree
      * @param numTrees		number of trees to build
      */
-    public NormalTreeFeatureSelectorFactory(long randSeed, int numCols, int numSelect, int numTrees) {
+    public NormalTreeFeatureSelectorFactory(long randSeed, int[] idxCols, int numSelect, int numTrees) {
         this.counter = 0;
         this.rand = new Random(randSeed);
-        this.nCols = numCols;
         this.numFeatures = numSelect;
         this.nTrees = numTrees;
+        this.idxes = idxCols;
     }
 
     @Override
@@ -84,8 +84,14 @@ public class NormalTreeFeatureSelectorFactory implements Iterator<TreeFeatureSel
      */
     public static Iterator<TreeFeatureSelectorFactory> iterator(int nTrees, RandomForestTrainProcessor processor) {
         RandomForest.Parms parms = processor.getParms();
+        int nFeatures = parms.getNumFeatures();
+        // Get the useful-feature array.
+        int[] idxes = processor.getUsefulFeatureArray();
+        // Insure the number of features per tree is reasonable.
+        if (nFeatures >= idxes.length)
+            nFeatures = idxes.length / 2;
         // Note that we add a prime number to the seed so that it is not the same as the seed used for example selection.
-        return new NormalTreeFeatureSelectorFactory(processor.getSeed() + 3719, processor.getWidth(), parms.getNumFeatures(),
+        return new NormalTreeFeatureSelectorFactory(processor.getSeed() + 3719, idxes, nFeatures,
                 parms.getNumTrees());
     }
 

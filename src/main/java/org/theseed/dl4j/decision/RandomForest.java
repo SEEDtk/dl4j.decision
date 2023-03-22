@@ -345,8 +345,9 @@ public class RandomForest implements Serializable {
      */
     public RandomForest(DataSet dataset, Parms hParms) {
         this.nLabels = dataset.numOutcomes();
+        int[] idxes = getUsefulFeatures(dataset);
         Iterator<TreeFeatureSelectorFactory> treeIter = new NormalTreeFeatureSelectorFactory(rand.nextLong(),
-                dataset.numInputs(), hParms.getNumFeatures(), hParms.getNumTrees());
+                idxes, hParms.getNumFeatures(), hParms.getNumTrees());
         this.buildForest(dataset, hParms, treeIter);
     }
 
@@ -500,6 +501,32 @@ public class RandomForest implements Serializable {
         } finally {
             batches.close();
         }
+    }
+
+    /**
+     * Compute the useful columns in a training set.  Only columns with a variance in the input values
+     * will be included in the output.
+     *
+     * @param trainingSet	training set to scan
+     *
+     * @return an array of the column indices for the useful columns
+     */
+    public static int[] getUsefulFeatures(DataSet trainingSet) {
+        // We will use this array to identify the useful columns.
+        boolean[] flags = new boolean[trainingSet.numInputs()];
+        // Analyze each column.
+        INDArray features = trainingSet.getFeatures();
+        final int n = features.rows();
+        for (int i = 0; i < flags.length; i++) {
+            // Get the first value.  Check every other row until we find a different one.
+            double val0 = features.getDouble(0, i);
+            flags[i] = false;
+            for (int j = 1; j < n && ! flags[i]; j++)
+                flags[i] = features.getDouble(j, i) != val0;
+        }
+        // Now every nontrivial feature column has TRUE in the flag array.
+        int[] retVal = IntStream.range(0, flags.length).filter(i -> flags[i]).toArray();
+        return retVal;
     }
 
 }
