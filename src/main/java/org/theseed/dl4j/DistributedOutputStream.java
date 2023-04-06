@@ -24,8 +24,8 @@ import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.train.ITrainingProcessor;
 
 /**
- * This is ia class that produces a scrambled output stream for deep learning.  It buffers the entire stream in memory
- * and then writes it out in a different order.  One column will be selected as a label, and its vallues will be
+ * This is a class that produces a scrambled output stream for deep learning.  It buffers the entire stream in memory
+ * and then writes it out in a different order.  One column will be selected as a label, and its values will be
  * distributed across the output file as evenly as possible.  If the label is discrete (CLASS), each value will be distributed.
  * If the label is continuous (REGRESSION), it will be divided into 10 range categories.
  *
@@ -45,6 +45,8 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     private int outCount;
     /** number of fields expected in each input line */
     private int width;
+    /** if TRUE, each section will be trimmed so they are all the same size */
+    private boolean balanced;
 
     /**
      * Open a distributed output file.
@@ -61,6 +63,8 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     public static DistributedOutputStream create(File outputFile, ITrainingProcessor processor, String label, String[] headers) throws IOException {
         // Create the stream object.
         DistributedOutputStream retVal = processor.getDistributor();
+        // Default to unbalanced.
+        retVal.balanced = false;
         // Find the label.
         OptionalInt labelIdx0 = IntStream.range(0, headers.length).filter(i -> headers[i].contentEquals(label)).findFirst();
         if (! labelIdx0.isPresent())
@@ -91,6 +95,15 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             return retVal;
         }
 
+    }
+
+    /**
+     * Denote whether the output should have the same number of lines for each class.
+     *
+     * @param flag	TRUE if it should, else FALSE
+     */
+    public void setBalanced(boolean flag) {
+        this.balanced = flag;
     }
 
     /**
@@ -148,13 +161,6 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     }
 
     /**
-     * Distribute a list into N pieces of approximately equal size.
-     *
-     * @param list1		source list
-     * @param num		number of pieces
-     */
-
-    /**
      * Write all the accumulated output.
      */
     private void flush() {
@@ -169,6 +175,9 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
                 Collections.shuffle(classLines);
             // Sort the classes from smallest to largest.
             List<List<String>> sortedLists = classMap.values().stream().sorted(new SizeSorter()).collect(Collectors.toList());
+            // If the lists need to be balanced, we do that here.
+            if (this.balanced)
+                this.trimLists(sortedLists);
             // Create the master list. At each stage we distribute the master list's pieces among the lists at the current stage.
             // It starts empty.
             List<List<String>> master = new ArrayList<List<String>>();
@@ -180,7 +189,7 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
                 for (List<String> oldList : master) {
                     newMaster.get(i).addAll(oldList);
                     i++;
-                    if  (i >= newMaster.size()) i = 0;
+                    if (i >= newMaster.size()) i = 0;
                 }
                 master = newMaster;
             }
@@ -190,6 +199,22 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
                     this.writer.println(line);
             // Make sure the writes actually happen.
             this.writer.flush();
+        }
+    }
+
+    /**
+     * Remove excess lines from each list so that they all have the same length.
+     *
+     * @param sortedLists	list of line lists, sorted from longest to shortest
+     */
+    private void trimLists(List<List<String>> sortedLists) {
+        // Get the length of the shortest list.
+        int n1 = sortedLists.size() - 1;
+        final int len = sortedLists.get(n1).size();
+        // Remove excess members from all the lists.
+        for (var lineList : sortedLists) {
+            while (lineList.size() > len)
+                lineList.remove(lineList.size() - 1);
         }
     }
 
