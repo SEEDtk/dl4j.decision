@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
-import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.train.ITrainingProcessor;
 
 /**
@@ -28,6 +27,10 @@ import org.theseed.dl4j.train.ITrainingProcessor;
  * and then writes it out in a different order.  One column will be selected as a label, and its values will be
  * distributed across the output file as evenly as possible.  If the label is discrete (CLASS), each value will be distributed.
  * If the label is continuous (REGRESSION), it will be divided into 10 range categories.
+ *
+ * The client can specify quantity balancing.  If this is chosen, a limit will be placed on class (or category) size based on
+ * the size of the smallest class.  A balance number of 2.0 means each class can be no more than twice the size of the smallest.
+ * A balance number of 0.5 means each class can be no more than half the size of the smallest.
  *
  * @author Bruce Parrello
  *
@@ -45,8 +48,8 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     private int outCount;
     /** number of fields expected in each input line */
     private int width;
-    /** if TRUE, each section will be trimmed so they are all the same size */
-    private boolean balanced;
+    /** maximum ratio of a class set in terms of the smallest set, 0 to ignore */
+    private double balanced;
 
     /**
      * Open a distributed output file.
@@ -64,7 +67,7 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
         // Create the stream object.
         DistributedOutputStream retVal = processor.getDistributor();
         // Default to unbalanced.
-        retVal.balanced = false;
+        retVal.balanced = 0.0;
         // Find the label.
         OptionalInt labelIdx0 = IntStream.range(0, headers.length).filter(i -> headers[i].contentEquals(label)).findFirst();
         if (! labelIdx0.isPresent())
@@ -98,12 +101,12 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     }
 
     /**
-     * Denote whether the output should have the same number of lines for each class.
+     * Denote whether the output should be balanced in terms of the smallest class.
      *
-     * @param flag	TRUE if it should, else FALSE
+     * @param ratio		0 for unbalanced, otherwise the maximum ratio of other classes to the smallest
      */
-    public void setBalanced(boolean flag) {
-        this.balanced = flag;
+    public void setBalanced(double ratio) {
+        this.balanced = ratio;
     }
 
     /**
@@ -174,24 +177,40 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             for (List<String> classLines : classMap.values())
                 Collections.shuffle(classLines);
             // Sort the classes from smallest to largest.
-            List<List<String>> sortedLists = classMap.values().stream().sorted(new SizeSorter()).collect(Collectors.toList());
+            var sorter = new SizeSorter();
+            List<List<String>> sortedLists = classMap.values().stream().sorted(sorter).collect(Collectors.toList());
             // If the lists need to be balanced, we do that here.
-            if (this.balanced)
+            if (this.balanced > 0.0) {
+                // Update the list sizes.
                 this.trimLists(sortedLists);
-            // Create the master list. At each stage we distribute the master list's pieces among the lists at the current stage.
-            // It starts empty.
-            List<List<String>> master = new ArrayList<List<String>>();
-            for (int pos = 0; pos < sortedLists.size(); pos++) {
-                // Turn the current level into a list of lists.
-                List<List<String>> newMaster = sortedLists.get(pos).stream().map(x -> new Shuffler<String>(10).add1(x)).collect(Collectors.toList());
-                // Add each of the existing lists to the new list items.
-                int i = 0;
-                for (List<String> oldList : master) {
-                    newMaster.get(i).addAll(oldList);
+                // Resort the lists.
+                sortedLists = sortedLists.stream().sorted(sorter).collect(Collectors.toList());
+            }
+            // Get the smallest list.
+            final int n1 = sortedLists.size() - 1;
+            // Create the master list. The master list will have one item from the shortest set, and then the items from the
+            // other sets will be distributed as evenly as possible.
+            List<String> smallest = sortedLists.get(n1);
+            final int masterSize = smallest.size();
+            // We need to compute the estimated size for each sublist.
+            final int maxSize = (int) Math.ceil(this.outCount / (double) masterSize);
+            List<List<String>> master = new ArrayList<List<String>>(masterSize);
+            for (var line1 : smallest) {
+                var subList = new ArrayList<String>(maxSize);
+                subList.add(line1);
+                master.add(subList);
+            }
+            // This variable indicates where we start distributing the list elements.
+            int i0 = 0;
+            for (var list : sortedLists) {
+                int i = i0;
+                for (String item : list) {
+                    // Add this item to the current master list.
+                    master.get(i).add(item);
+                    // Get the next master list.
                     i++;
-                    if (i >= newMaster.size()) i = 0;
+                    if (i >= masterSize) i = 0;
                 }
-                master = newMaster;
             }
             // Now write the master lists in order.
             for (List<String> list : master)
@@ -210,9 +229,11 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     private void trimLists(List<List<String>> sortedLists) {
         // Get the length of the shortest list.
         int n1 = sortedLists.size() - 1;
-        final int len = sortedLists.get(n1).size();
+        // Compute the maximum size of all other lists.
+        final int len = (int) Math.ceil(sortedLists.get(n1).size() * this.balanced);
         // Remove excess members from all the lists.
-        for (var lineList : sortedLists) {
+        for (int i = 0; i < n1; i++) {
+            var lineList = sortedLists.get(i);
             while (lineList.size() > len)
                 lineList.remove(lineList.size() - 1);
         }
