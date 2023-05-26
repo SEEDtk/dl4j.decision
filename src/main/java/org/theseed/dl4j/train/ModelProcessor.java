@@ -56,7 +56,7 @@ public abstract class ModelProcessor {
     /** TRUE if we have channel input */
     private boolean channelMode;
     /** best accuracy */
-    protected double bestRating;
+    private double bestRating;
     /** list of metadata column names */
     protected List<String> metaList;
     /** progress monitor */
@@ -113,6 +113,17 @@ public abstract class ModelProcessor {
      */
     public void setProgressMonitor(ITrainReporter monitor) {
         this.progressMonitor = monitor;
+    }
+
+    /**
+     * Show a progress message.
+     *
+     * @param msg	progress message to show
+     */
+    public void showProgressMessage(String msg) {
+        if (this.progressMonitor != null)
+            this.progressMonitor.showMessage(msg);
+        log.info(msg);
     }
 
     /**

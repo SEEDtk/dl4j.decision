@@ -74,6 +74,7 @@ import org.theseed.utils.ParseFailureException;
  * --sampleSize		number of examples to use for each tree's subset
  * --selection		feature selection mode (default NORMAL)
  * --rootFile		if feature selection mode is ROOTED, the name of a file containing the tree root feature names in the first column
+ * --prefer			preferred accuracy metric, for use in searching
  *
  * @author Bruce Parrello
  *
@@ -142,6 +143,10 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
     @Option(name = "--rootFile", usage = "name of tab-delimited file (with headers) in model directory containing list of feature column names for root selection")
     private String rootFile;
 
+    /** preferred accuracy metric, for use in searching */
+    @Option(name = "--prefer", usage = "statistical metric to optimize during searches")
+    private ClassMetric searchMetric;
+
     @Override
     public boolean parseCommand(String[] args) {
         boolean retVal = false;
@@ -179,17 +184,18 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
             // Convert the testing set to decision tree format.
             RandomForest.flattenDataSet(this.testingSet);
             // Now we read the training set.
+            this.showProgressMessage("Reading training set.");
             DataSet trainingSet = this.readTrainingSet();
             // Find all the nontrivial features in the training set.
             this.usefulFeatureIdxes = RandomForest.getUsefulFeatures(trainingSet);
             // Build the model from the training set.
             long start = System.currentTimeMillis();
-            log.info("Creating selection factories");
+            this.showProgressMessage("Creating selection factories");
             this.factoryIter = this.selection.create(this.hParms.getNumTrees(), this);
-            log.info("Building the model.");
-            this.model = new RandomForest(trainingSet, this.hParms, this.factoryIter);
+            this.showProgressMessage("Building the model.");
+            this.model = new RandomForest(trainingSet, this.hParms, this.factoryIter, this.getProgressMonitor());
             // Test the accuracy.
-            log.info("Testing the model.");
+            this.showProgressMessage("Testing the model.");
             // Create a label array for output.
             INDArray predictions = this.model.predict(this.testingSet.getFeatures());
             String duration = DurationFormatUtils.formatDuration(System.currentTimeMillis() - start, "mm:ss");
@@ -197,7 +203,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
             INDArray expectations = this.testingSet.getLabels();
             Evaluation accuracy = new Evaluation(this.getLabels());
             accuracy.eval(expectations, predictions);
-            log.info("Writing the report.");
+            this.showProgressMessage("Writing the report.");
             TextStringBuilder reportBuilder = new TextStringBuilder(800);
             // Describe the model.
             reportBuilder.appendNewLine();
@@ -214,7 +220,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
                            this.nEstimators, this.maxDepth, this.sampleSize, this.batchSize,
                            this.method.toString(), this.seed, duration);
             this.produceAccuracyReport(reportBuilder, accuracy, predictions, expectations);
-            this.bestRating = accuracy.accuracy();
+            this.setRating(this.searchMetric.getValue(accuracy));
             reportBuilder.appendNewLine();
             INDArray impactArray = this.model.computeImpact();
             this.impact = this.computeImpactList(impactArray);
@@ -372,8 +378,9 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
         this.batchSize = 100;
         this.selection = TreeFeatureSelectorFactory.Type.NORMAL;
         this.rootFile = "roots.tbl";
+        this.searchMetric = ClassMetric.ACCURACY;
         // Clear the rating value.
-        this.bestRating = 0.0;
+        this.setRating(0.0);
     }
 
     @Override
@@ -397,6 +404,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
     @Override
    public void writeParms(File outFile) throws IOException {
        PrintWriter writer = new PrintWriter(outFile);
+       writer.format("--prefer %s\t# metric to optimize during searches%n", this.searchMetric.toString());
        writer.format("--col %s\t# input column for class name%n", this.labelCol);
        writeBaseModelParms(writer);
        String typeList = Stream.of(RandomForest.Method.values()).map(RandomForest.Method::name).collect(Collectors.joining(", "));
