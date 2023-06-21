@@ -17,7 +17,7 @@ public enum ClassMetric {
     /** fraction of total results that are correct */
     ACCURACY {
         @Override
-        protected double compute(ConfusionMatrix<Integer> matrix) {
+        public double compute(ConfusionMatrix<Integer> matrix) {
             return ratio(this.truePositive(matrix) + this.trueNegative(matrix),
                     this.falsePositive(matrix) + this.falseNegative(matrix));
         }
@@ -25,29 +25,43 @@ public enum ClassMetric {
     /** fraction of positive results that are correct */
     PRECISION {
         @Override
-        protected double compute(ConfusionMatrix<Integer> matrix) {
-            return ratio(this.truePositive(matrix), this.falseNegative(matrix));
+        public double compute(ConfusionMatrix<Integer> matrix) {
+            return ratio(this.truePositive(matrix), this.falsePositive(matrix));
         }
     },
     /** fraction of negative results that are correct */
     NPV {
         @Override
-        protected double compute(ConfusionMatrix<Integer> matrix) {
+        public double compute(ConfusionMatrix<Integer> matrix) {
             return ratio(this.trueNegative(matrix), this.falseNegative(matrix));
         }
     },
     /** fraction of actual negatives that are correct */
     SPECIFICITY {
         @Override
-        protected double compute(ConfusionMatrix<Integer> matrix) {
+        public double compute(ConfusionMatrix<Integer> matrix) {
             return ratio(this.trueNegative(matrix), this.falsePositive(matrix));
         }
     },
     /** fraction of actual positives that are correct */
     SENSITIVITY {
         @Override
-        protected double compute(ConfusionMatrix<Integer> matrix) {
+        public double compute(ConfusionMatrix<Integer> matrix) {
             return ratio(this.truePositive(matrix), this.falseNegative(matrix));
+        }
+    },
+    /** positive likelihood ratio */
+    PLR {
+        @Override
+        public double compute(ConfusionMatrix<Integer> matrix) {
+            return negativeLikelihood(matrix);
+        }
+    },
+    /** negative likelihood ratio */
+    NLR {
+        @Override
+        public double compute(ConfusionMatrix<Integer> matrix) {
+            return positiveLikelihood(matrix);
         }
     };
 
@@ -59,6 +73,42 @@ public enum ClassMetric {
     public double getValue(Evaluation eval) {
         ConfusionMatrix<Integer> matrix = eval.getConfusion();
         return this.compute(matrix);
+    }
+
+    /**
+     * Compute the negative likelihood ratio.
+     *
+     * @param matrix	confusion matrix for this result
+     *
+     * @return a measure of how likely a negative prediction is correct
+     */
+    protected double negativeLikelihood(ConfusionMatrix<Integer> matrix) {
+        int tp = truePositive(matrix);
+        int tn = trueNegative(matrix);
+        int fp = falsePositive(matrix);
+        int fn = falseNegative(matrix);
+        double num = ratio(tn, fp);
+        double den = ratio(fn, tp);
+        double retVal = (den > 0 ? num / den : Double.POSITIVE_INFINITY);
+        return Math.log10(retVal);
+    }
+
+    /**
+     * Compute the positive likelihood ratio.
+     *
+     * @param matrix	confusion matrix for this result
+     *
+     * @return a measure of how likely a positive prediction is correct
+     */
+    protected double positiveLikelihood(ConfusionMatrix<Integer> matrix) {
+        int tp = truePositive(matrix);
+        int tn = trueNegative(matrix);
+        int fp = falsePositive(matrix);
+        int fn = falseNegative(matrix);
+        double den = ratio(fp, tn);
+        double num = ratio(tp, fn);
+        double retVal = (den > 0 ? num / den : Double.POSITIVE_INFINITY);
+        return Math.log10(retVal);
     }
 
     /**
@@ -76,12 +126,14 @@ public enum ClassMetric {
         return retVal;
     }
 
+
+
     /**
      * @return the value of this metric
      *
      * @param matrix	confusion matrix
      */
-    protected abstract double compute(ConfusionMatrix<Integer> matrix);
+    public abstract double compute(ConfusionMatrix<Integer> matrix);
 
     /**
      * Compute the number of true positives.

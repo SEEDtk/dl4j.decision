@@ -644,6 +644,9 @@ public abstract class ModelProcessor {
             double specificity = ((double) matrix.getCount(0, 0)) / actualNegative;
             buffer.appendln("Model specificity is %11.4f.%n", specificity);
         }
+        // Get the likelihood ratios.
+        buffer.appendln("Positive likelihood is %11.6f.  Negative likelihood is %11.6f.%n", ClassMetric.PLR.compute(matrix),
+                ClassMetric.NLR.compute(matrix));
         // Write the header.
         buffer.appendln("%-11s %11s %11s %11s %11s %11s", "class", "accuracy", "sensitivity", "precision", "fallout", "MAE");
         buffer.appendln(StringUtils.repeat('-', 71));

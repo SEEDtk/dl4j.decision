@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.theseed.dl4j.train.ITrainingProcessor;
 
 /**
@@ -38,6 +40,8 @@ import org.theseed.dl4j.train.ITrainingProcessor;
 public abstract class DistributedOutputStream implements Closeable, AutoCloseable {
 
     // FIELDS
+    /** logging facility */
+    protected static Logger log = LoggerFactory.getLogger(DistributedOutputStream.class);
     /** underlying output writer */
     private PrintWriter writer;
     /** label column index */
@@ -176,49 +180,81 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             // First we need to randomize all the classes.
             for (List<String> classLines : classMap.values())
                 Collections.shuffle(classLines);
-            // Sort the classes from smallest to largest.
-            var sorter = new SizeSorter();
-            List<List<String>> sortedLists = classMap.values().stream().sorted(sorter).collect(Collectors.toList());
             // If the lists need to be balanced, we do that here.
             if (this.balanced > 0.0) {
                 // Update the list sizes.
+                var sortedLists = new ArrayList<List<String>>(classMap.values());
+                Collections.sort(sortedLists, new SizeSorter());
                 this.trimLists(sortedLists);
-                // Resort the lists.
-                sortedLists = sortedLists.stream().sorted(sorter).collect(Collectors.toList());
             }
-            // Get the smallest list.
-            final int n1 = sortedLists.size() - 1;
-            // Create the master list. The master list will have one item from the shortest set, and then the items from the
-            // other sets will be distributed as evenly as possible.
-            List<String> smallest = sortedLists.get(n1);
-            final int masterSize = smallest.size();
-            // We need to compute the estimated size for each sublist.
-            final int maxSize = (int) Math.ceil(this.outCount / (double) masterSize);
-            List<List<String>> master = new ArrayList<List<String>>(masterSize);
-            for (var line1 : smallest) {
-                var subList = new ArrayList<String>(maxSize);
-                subList.add(line1);
-                master.add(subList);
-            }
-            // This variable indicates where we start distributing the list elements.
-            int i0 = 0;
-            for (var list : sortedLists) {
-                int i = i0;
-                for (String item : list) {
-                    // Add this item to the current master list.
-                    master.get(i).add(item);
-                    // Get the next master list.
-                    i++;
-                    if (i >= masterSize) i = 0;
-                }
-            }
-            // Now write the master lists in order.
-            for (List<String> list : master)
-                for (String line : list)
-                    this.writer.println(line);
+            // Distribute the lines into a master list.
+            List<String> lineList = this.distribute(classMap);
+            // Write out the list.
+            for (String line : lineList)
+                this.writer.println(line);
             // Make sure the writes actually happen.
             this.writer.flush();
         }
+    }
+
+    /**
+     * Distribute the contents of the specified lists evenly into the output list.  This is a recursive method.  At each
+     * level, we split the bigger lists evenly among the smaller lists and then concatenate the results.
+     *
+     * @param classMap	a map of output values to line lists
+     *
+     * @return a single distributed list of lines
+     */
+    private List<String> distribute(Map<String, List<String>> classMap) {
+        // If there is only one key, we are done.
+        List<String> retVal;
+        if (classMap.size() <= 1)
+             retVal = classMap.values().iterator().next();
+        else {
+            // Get the key with the fewest associated lines.
+            String shortKey = getShortest(classMap);
+            // We are going to build a new class map for each line from the shortest list.
+            // These will be arranged in a list that we will move through in a circular
+            // fashion.  The maps are tree maps because the number of keys is expected to
+            // be very small.
+            final List<String> shortestList = classMap.get(shortKey);
+            List<Map<String, List<String>>> mapList = shortestList.stream().map(x -> new TreeMap<String, List<String>>())
+                    .collect(Collectors.toList());
+            // Initialize each map with all the keys other than the shortest-list's key.
+            for (var map : mapList) {
+                for (String key : classMap.keySet()) {
+                    if (! key.contentEquals(shortKey))
+                        map.put(key, new ArrayList<String>());
+                }
+            }
+            // This will be our current position in the output maps.
+            int i0 = 0;
+            // Now loop through the class map, transferring lines.
+            for (var mapEntry : classMap.entrySet()) {
+                // This key will determine which key gets these lines in the smaller maps.
+                String key = mapEntry.getKey();
+                if (! key.contentEquals(shortKey)) {
+                    // Loop through the lines for this key, transferring them to the smaller maps.
+                    for (String line : mapEntry.getValue()) {
+                        var smallMap = mapList.get(i0);
+                        smallMap.get(key).add(line);
+                        i0++;
+                        if (i0 >= mapList.size()) i0 = 0;
+                    }
+                }
+            }
+            // Now we produce the output list.  We distribute each smaller map and append the result
+            // to a line from the shortest-key list.
+            retVal = new ArrayList<String>();
+            for (int i = 0; i < mapList.size(); i++) {
+                // Add the shortest-list line to the output.
+                retVal.add(shortestList.get(i));
+                // Distribute its class map and add that.
+                List<String> distributedList = this.distribute(mapList.get(i));
+                retVal.addAll(distributedList);
+            }
+        }
+        return retVal;
     }
 
     /**
@@ -237,6 +273,27 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             while (lineList.size() > len)
                 lineList.remove(lineList.size() - 1);
         }
+    }
+
+    /**
+     * Find the key with the shortest value list in a class map.
+     *
+     * @param classMap	map of values (keys) to lists of lines with the value
+     *
+     * @return the value with the shortest list in the specified class map,
+     * 		   or NULL if the map is has no non-empty lists
+     */
+    private static String getShortest(Map<String, List<String>> classMap) {
+        int len = Integer.MAX_VALUE;
+        String retVal = null;
+        for (var mapEntry : classMap.entrySet()) {
+            int newLen = mapEntry.getValue().size();
+            if (newLen < len) {
+                retVal = mapEntry.getKey();
+                len = newLen;
+            }
+        }
+        return retVal;
     }
 
     /**
