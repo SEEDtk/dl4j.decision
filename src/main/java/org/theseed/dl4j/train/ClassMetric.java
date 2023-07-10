@@ -87,8 +87,8 @@ public enum ClassMetric {
         int tn = trueNegative(matrix);
         int fp = falsePositive(matrix);
         int fn = falseNegative(matrix);
-        double num = ratio(tn, fp);
-        double den = ratio(fn, tp);
+        double num = ratio(tn + 1, fp + 1);
+        double den = ratio(fn + 1, tp + 1);
         double retVal = (den > 0 ? num / den : Double.POSITIVE_INFINITY);
         return Math.log10(retVal);
     }
@@ -105,8 +105,8 @@ public enum ClassMetric {
         int tn = trueNegative(matrix);
         int fp = falsePositive(matrix);
         int fn = falseNegative(matrix);
-        double den = ratio(fp, tn);
-        double num = ratio(tp, fn);
+        double den = ratio(fp + 1, tn + 1);
+        double num = ratio(tp + 1, fn + 1);
         double retVal = (den > 0 ? num / den : Double.POSITIVE_INFINITY);
         return Math.log10(retVal);
     }
