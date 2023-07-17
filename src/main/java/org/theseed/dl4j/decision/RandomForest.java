@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.theseed.dl4j.TabbedDataSetReader;
 import org.theseed.dl4j.train.ClassPredictError;
+import org.theseed.dl4j.train.ITrainReporter;
 import org.theseed.utils.IDescribable;
 
 /**
@@ -56,6 +57,10 @@ public class RandomForest implements Serializable {
     private transient IRandomizer randomizer;
     /** split point finder */
     private transient Iterator<TreeFeatureSelectorFactory> factoryIter;
+    /** progress monitor for creation */
+    private transient ITrainReporter monitor;
+    /** number of trees built during creation */
+    private transient int treesDone;
 
     /**
      * type of randomization
@@ -301,10 +306,11 @@ public class RandomForest implements Serializable {
      * @param dataset		training set to use
      * @param parms			hyper-parameters
      * @param factoryIter	iterator for feature selector factories to be used in producing the forest
+     * @param mon			progress monitor (or NULL if none)
      */
-    public RandomForest(DataSet dataset, Parms parms, Iterator<TreeFeatureSelectorFactory> factoryIter) {
+    public RandomForest(DataSet dataset, Parms parms, Iterator<TreeFeatureSelectorFactory> factoryIter, ITrainReporter mon) {
         this.nLabels = dataset.numOutcomes();
-        buildForest(dataset, parms, factoryIter);
+        buildForest(dataset, parms, factoryIter, mon);
     }
 
     /**
@@ -313,12 +319,15 @@ public class RandomForest implements Serializable {
      * @param dataset		training set to use
      * @param parms			hyper-parameters
      * @param factoryIter	iterator for feature selector factories to be used in producing the forest
+     * @param mon			progress monitor
      */
-    private void buildForest(DataSet dataset, Parms parms, Iterator<TreeFeatureSelectorFactory> factoryIter) {
+    private void buildForest(DataSet dataset, Parms parms, Iterator<TreeFeatureSelectorFactory> factoryIter, ITrainReporter mon) {
         this.nFeatures = dataset.numInputs();
         this.parms = parms;
         this.factoryIter = factoryIter;
         this.randomizer = parms.getRandomizer();
+        this.treesDone = 0;
+        this.monitor = mon;
         // Initialize the randomizer.
         log.debug("Initializing randomizer for {} examples.", this.parms.getNumExamples());
         this.randomizer.initializeData(this.nLabels, this.parms.getNumExamples(), dataset);
@@ -345,9 +354,10 @@ public class RandomForest implements Serializable {
      */
     public RandomForest(DataSet dataset, Parms hParms) {
         this.nLabels = dataset.numOutcomes();
+        int[] idxes = getUsefulFeatures(dataset);
         Iterator<TreeFeatureSelectorFactory> treeIter = new NormalTreeFeatureSelectorFactory(rand.nextLong(),
-                dataset.numInputs(), hParms.getNumFeatures(), hParms.getNumTrees());
-        this.buildForest(dataset, hParms, treeIter);
+                idxes, hParms.getNumFeatures(), hParms.getNumTrees());
+        this.buildForest(dataset, hParms, treeIter, null);
     }
 
     /**
@@ -366,7 +376,28 @@ public class RandomForest implements Serializable {
         DataSet sample = this.randomizer.getData(seed);
         // Build the decision tree.
         DecisionTree retVal = new DecisionTree(sample, this.parms, factory);
+        if (this.monitor != null)
+            this.reportTree(retVal);
         return retVal;
+    }
+
+    /**
+     * Report completion of a new tree to the progress monitor.  Here the epoch is the number of trees completed,
+     * the score is 1 minus the new tree's accuracy, and the rating is the max accuracy so far.
+     *
+     * @param tree	new decision tree
+     */
+    private synchronized void reportTree(DecisionTree tree) {
+        this.treesDone++;
+        double score = tree.score();
+        try {
+            this.monitor.displayEpoch(this.treesDone, score, 0.0, false);
+        } catch (InterruptedException e) {
+            // Just ignore the exception.
+            log.error(e.toString());
+        }
+
+
     }
 
     /**
@@ -500,6 +531,32 @@ public class RandomForest implements Serializable {
         } finally {
             batches.close();
         }
+    }
+
+    /**
+     * Compute the useful columns in a training set.  Only columns with a variance in the input values
+     * will be included in the output.
+     *
+     * @param trainingSet	training set to scan
+     *
+     * @return an array of the column indices for the useful columns
+     */
+    public static int[] getUsefulFeatures(DataSet trainingSet) {
+        // We will use this array to identify the useful columns.
+        boolean[] flags = new boolean[trainingSet.numInputs()];
+        // Analyze each column.
+        INDArray features = trainingSet.getFeatures();
+        final int n = features.rows();
+        for (int i = 0; i < flags.length; i++) {
+            // Get the first value.  Check every other row until we find a different one.
+            double val0 = features.getDouble(0, i);
+            flags[i] = false;
+            for (int j = 1; j < n && ! flags[i]; j++)
+                flags[i] = features.getDouble(j, i) != val0;
+        }
+        // Now every nontrivial feature column has TRUE in the flag array.
+        int[] retVal = IntStream.range(0, flags.length).filter(i -> flags[i]).toArray();
+        return retVal;
     }
 
 }

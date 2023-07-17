@@ -20,14 +20,19 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.theseed.dl4j.train.ITrainingProcessor;
-import org.theseed.io.Shuffler;
 
 /**
- * This is ia class that produces a scrambled output stream for deep learning.  It buffers the entire stream in memory
- * and then writes it out in a different order.  One column will be selected as a label, and its vallues will be
+ * This is a class that produces a scrambled output stream for deep learning.  It buffers the entire stream in memory
+ * and then writes it out in a different order.  One column will be selected as a label, and its values will be
  * distributed across the output file as evenly as possible.  If the label is discrete (CLASS), each value will be distributed.
  * If the label is continuous (REGRESSION), it will be divided into 10 range categories.
+ *
+ * The client can specify quantity balancing.  If this is chosen, a limit will be placed on class (or category) size based on
+ * the size of the smallest class.  A balance number of 2.0 means each class can be no more than twice the size of the smallest.
+ * A balance number of 0.5 means each class can be no more than half the size of the smallest.
  *
  * @author Bruce Parrello
  *
@@ -35,6 +40,8 @@ import org.theseed.io.Shuffler;
 public abstract class DistributedOutputStream implements Closeable, AutoCloseable {
 
     // FIELDS
+    /** logging facility */
+    protected static Logger log = LoggerFactory.getLogger(DistributedOutputStream.class);
     /** underlying output writer */
     private PrintWriter writer;
     /** label column index */
@@ -45,6 +52,8 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     private int outCount;
     /** number of fields expected in each input line */
     private int width;
+    /** maximum ratio of a class set in terms of the smallest set, 0 to ignore */
+    private double balanced;
 
     /**
      * Open a distributed output file.
@@ -61,6 +70,8 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     public static DistributedOutputStream create(File outputFile, ITrainingProcessor processor, String label, String[] headers) throws IOException {
         // Create the stream object.
         DistributedOutputStream retVal = processor.getDistributor();
+        // Default to unbalanced.
+        retVal.balanced = 0.0;
         // Find the label.
         OptionalInt labelIdx0 = IntStream.range(0, headers.length).filter(i -> headers[i].contentEquals(label)).findFirst();
         if (! labelIdx0.isPresent())
@@ -91,6 +102,15 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             return retVal;
         }
 
+    }
+
+    /**
+     * Denote whether the output should be balanced in terms of the smallest class.
+     *
+     * @param ratio		0 for unbalanced, otherwise the maximum ratio of other classes to the smallest
+     */
+    public void setBalanced(double ratio) {
+        this.balanced = ratio;
     }
 
     /**
@@ -148,13 +168,6 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
     }
 
     /**
-     * Distribute a list into N pieces of approximately equal size.
-     *
-     * @param list1		source list
-     * @param num		number of pieces
-     */
-
-    /**
      * Write all the accumulated output.
      */
     private void flush() {
@@ -167,30 +180,120 @@ public abstract class DistributedOutputStream implements Closeable, AutoCloseabl
             // First we need to randomize all the classes.
             for (List<String> classLines : classMap.values())
                 Collections.shuffle(classLines);
-            // Sort the classes from smallest to largest.
-            List<List<String>> sortedLists = classMap.values().stream().sorted(new SizeSorter()).collect(Collectors.toList());
-            // Create the master list. At each stage we distribute the master list's pieces among the lists at the current stage.
-            // It starts empty.
-            List<List<String>> master = new ArrayList<List<String>>();
-            for (int pos = 0; pos < sortedLists.size(); pos++) {
-                // Turn the current level into a list of lists.
-                List<List<String>> newMaster = sortedLists.get(pos).stream().map(x -> new Shuffler<String>(10).add1(x)).collect(Collectors.toList());
-                // Add each of the existing lists to the new list items.
-                int i = 0;
-                for (List<String> oldList : master) {
-                    newMaster.get(i).addAll(oldList);
-                    i++;
-                    if  (i >= newMaster.size()) i = 0;
-                }
-                master = newMaster;
+            // If the lists need to be balanced, we do that here.
+            if (this.balanced > 0.0) {
+                // Update the list sizes.
+                var sortedLists = new ArrayList<List<String>>(classMap.values());
+                Collections.sort(sortedLists, new SizeSorter());
+                this.trimLists(sortedLists);
             }
-            // Now write the master lists in order.
-            for (List<String> list : master)
-                for (String line : list)
-                    this.writer.println(line);
+            // Distribute the lines into a master list.
+            List<String> lineList = this.distribute(classMap);
+            // Write out the list.
+            for (String line : lineList)
+                this.writer.println(line);
             // Make sure the writes actually happen.
             this.writer.flush();
         }
+    }
+
+    /**
+     * Distribute the contents of the specified lists evenly into the output list.  This is a recursive method.  At each
+     * level, we split the bigger lists evenly among the smaller lists and then concatenate the results.
+     *
+     * @param classMap	a map of output values to line lists
+     *
+     * @return a single distributed list of lines
+     */
+    private List<String> distribute(Map<String, List<String>> classMap) {
+        // If there is only one key, we are done.
+        List<String> retVal;
+        if (classMap.size() <= 1)
+             retVal = classMap.values().iterator().next();
+        else {
+            // Get the key with the fewest associated lines.
+            String shortKey = getShortest(classMap);
+            // We are going to build a new class map for each line from the shortest list.
+            // These will be arranged in a list that we will move through in a circular
+            // fashion.  The maps are tree maps because the number of keys is expected to
+            // be very small.
+            final List<String> shortestList = classMap.get(shortKey);
+            List<Map<String, List<String>>> mapList = shortestList.stream().map(x -> new TreeMap<String, List<String>>())
+                    .collect(Collectors.toList());
+            // Initialize each map with all the keys other than the shortest-list's key.
+            for (var map : mapList) {
+                for (String key : classMap.keySet()) {
+                    if (! key.contentEquals(shortKey))
+                        map.put(key, new ArrayList<String>());
+                }
+            }
+            // This will be our current position in the output maps.
+            int i0 = 0;
+            // Now loop through the class map, transferring lines.
+            for (var mapEntry : classMap.entrySet()) {
+                // This key will determine which key gets these lines in the smaller maps.
+                String key = mapEntry.getKey();
+                if (! key.contentEquals(shortKey)) {
+                    // Loop through the lines for this key, transferring them to the smaller maps.
+                    for (String line : mapEntry.getValue()) {
+                        var smallMap = mapList.get(i0);
+                        smallMap.get(key).add(line);
+                        i0++;
+                        if (i0 >= mapList.size()) i0 = 0;
+                    }
+                }
+            }
+            // Now we produce the output list.  We distribute each smaller map and append the result
+            // to a line from the shortest-key list.
+            retVal = new ArrayList<String>();
+            for (int i = 0; i < mapList.size(); i++) {
+                // Add the shortest-list line to the output.
+                retVal.add(shortestList.get(i));
+                // Distribute its class map and add that.
+                List<String> distributedList = this.distribute(mapList.get(i));
+                retVal.addAll(distributedList);
+            }
+        }
+        return retVal;
+    }
+
+    /**
+     * Remove excess lines from each list so that they all have the same length.
+     *
+     * @param sortedLists	list of line lists, sorted from longest to shortest
+     */
+    private void trimLists(List<List<String>> sortedLists) {
+        // Get the length of the shortest list.
+        int n1 = sortedLists.size() - 1;
+        // Compute the maximum size of all other lists.
+        final int len = (int) Math.ceil(sortedLists.get(n1).size() * this.balanced);
+        // Remove excess members from all the lists.
+        for (int i = 0; i < n1; i++) {
+            var lineList = sortedLists.get(i);
+            while (lineList.size() > len)
+                lineList.remove(lineList.size() - 1);
+        }
+    }
+
+    /**
+     * Find the key with the shortest value list in a class map.
+     *
+     * @param classMap	map of values (keys) to lists of lines with the value
+     *
+     * @return the value with the shortest list in the specified class map,
+     * 		   or NULL if the map is has no non-empty lists
+     */
+    private static String getShortest(Map<String, List<String>> classMap) {
+        int len = Integer.MAX_VALUE;
+        String retVal = null;
+        for (var mapEntry : classMap.entrySet()) {
+            int newLen = mapEntry.getValue().size();
+            if (newLen < len) {
+                retVal = mapEntry.getKey();
+                len = newLen;
+            }
+        }
+        return retVal;
     }
 
     /**

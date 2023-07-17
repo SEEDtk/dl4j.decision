@@ -98,7 +98,7 @@ public class ClassPredictError implements IPredictError {
             this.accuracy = good / (double) this.rows;
             // Sensitivity is the  number of correct positives over the total number of expected positives.  It
             // indicates how good we are at correctly guessing positives.
-            this.sensitivity = good / (double) (this.truePositive + this.falseNegative + this.wrongPositive);
+            this.sensitivity = this.truePositive / (double) (this.truePositive + this.falseNegative);
             // Specificity is the  number of negatives over the total number of expected negatives.  It indicates
             // how good we are at correctly guessing negatives.
             this.specificity = this.trueNegative / (double) (this.falseNegative + this.trueNegative);

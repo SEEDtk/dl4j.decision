@@ -71,6 +71,14 @@ public class DecisionTree implements Serializable {
          */
         protected abstract void addImpact(INDArray vector);
 
+        /**
+         * The score of a node is its entropy if it is a leaf.  If it is a choice node, it is
+         * the mean score of the two children.
+         *
+         * @return the score of this node
+         */
+        public abstract double getScore();
+
     }
 
     /**
@@ -167,6 +175,11 @@ public class DecisionTree implements Serializable {
                     "[iFeature=" + this.iFeature + ", limit=" + this.limit + "]";
         }
 
+        @Override
+        public double getScore() {
+            return (this.left.getScore() + this.right.getScore()) / 2.0;
+        }
+
     }
 
     /**
@@ -207,6 +220,11 @@ public class DecisionTree implements Serializable {
         public String toString() {
             return "LeafNode@" + Integer.toHexString(System.identityHashCode(this)) +
                     "[iClass=" + this.iClass + "]";
+        }
+
+        @Override
+        public double getScore() {
+            return this.getEntropy();
         }
 
     }
@@ -461,6 +479,13 @@ public class DecisionTree implements Serializable {
      */
     public int size() {
         return this.size;
+    }
+
+    /**
+     * @return the score of this tree, which is a function of the leaf entropy
+     */
+    public double score() {
+        return this.root.getScore();
     }
 
 }

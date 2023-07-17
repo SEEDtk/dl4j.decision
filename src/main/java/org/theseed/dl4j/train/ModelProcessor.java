@@ -25,10 +25,10 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.ChannelDataSetReader;
 import org.theseed.dl4j.TabbedDataSetReader;
 import org.theseed.io.LineReader;
-import org.theseed.io.Shuffler;
 import org.theseed.io.TabbedLineReader;
 import org.theseed.reports.IValidationReport;
 import org.theseed.reports.NullTrainReporter;
@@ -56,7 +56,7 @@ public abstract class ModelProcessor {
     /** TRUE if we have channel input */
     private boolean channelMode;
     /** best accuracy */
-    protected double bestRating;
+    private double bestRating;
     /** list of metadata column names */
     protected List<String> metaList;
     /** progress monitor */
@@ -113,6 +113,17 @@ public abstract class ModelProcessor {
      */
     public void setProgressMonitor(ITrainReporter monitor) {
         this.progressMonitor = monitor;
+    }
+
+    /**
+     * Show a progress message.
+     *
+     * @param msg	progress message to show
+     */
+    public void showProgressMessage(String msg) {
+        if (this.progressMonitor != null)
+            this.progressMonitor.showMessage(msg);
+        log.info(msg);
     }
 
     /**
@@ -633,6 +644,9 @@ public abstract class ModelProcessor {
             double specificity = ((double) matrix.getCount(0, 0)) / actualNegative;
             buffer.appendln("Model specificity is %11.4f.%n", specificity);
         }
+        // Get the likelihood ratios.
+        buffer.appendln("Positive likelihood is %11.6f.  Negative likelihood is %11.6f.%n", ClassMetric.PLR.compute(matrix),
+                ClassMetric.NLR.compute(matrix));
         // Write the header.
         buffer.appendln("%-11s %11s %11s %11s %11s %11s", "class", "accuracy", "sensitivity", "precision", "fallout", "MAE");
         buffer.appendln(StringUtils.repeat('-', 71));
