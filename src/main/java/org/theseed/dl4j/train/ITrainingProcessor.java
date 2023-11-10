@@ -8,12 +8,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
+
+import org.theseed.basic.ICommand;
 import org.theseed.dl4j.DistributedOutputStream;
 import org.theseed.dl4j.TabbedDataSetReader;
 import org.theseed.io.TabbedLineReader;
 import org.theseed.reports.IValidationReport;
 import org.theseed.reports.TestValidationReport;
-import org.theseed.utils.ICommand;
 import org.theseed.utils.Parms;
 
 /**

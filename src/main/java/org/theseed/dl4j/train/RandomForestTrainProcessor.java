@@ -30,6 +30,7 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.theseed.basic.ParseFailureException;
 import org.theseed.counters.Rating;
 import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.DistributedOutputStream;
@@ -42,7 +43,6 @@ import org.theseed.reports.ClassTestValidationReport;
 import org.theseed.reports.ClassValidationReport;
 import org.theseed.reports.IValidationReport;
 import org.theseed.reports.TestValidationReport;
-import org.theseed.utils.ParseFailureException;
 
 /**
  * This class represents a random-forest model.  This is the fastest and simplest of the three main ML models.
