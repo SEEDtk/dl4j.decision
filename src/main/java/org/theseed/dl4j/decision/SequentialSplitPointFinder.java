@@ -35,7 +35,6 @@ public class SequentialSplitPointFinder extends SplitPointFinder {
             SortedMap<Double, INDArray> rowMap = new TreeMap<Double, INDArray>();
             for (DataSet row : rows) {
                 double value = row.getFeatures().getDouble(iFeature);
-                @SuppressWarnings("resource")
                 INDArray valueGroup = rowMap.computeIfAbsent(value, v -> Nd4j.zeros(nClasses));
                 // We use ravel here to convert a 1-row matrix to a vector.
                 valueGroup.addi(row.getLabels().ravel());

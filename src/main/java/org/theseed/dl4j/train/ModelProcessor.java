@@ -25,13 +25,13 @@ import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.theseed.counters.Shuffler;
 import org.theseed.dl4j.ChannelDataSetReader;
 import org.theseed.dl4j.TabbedDataSetReader;
 import org.theseed.io.LineReader;
 import org.theseed.io.TabbedLineReader;
 import org.theseed.reports.IValidationReport;
 import org.theseed.reports.NullTrainReporter;
+import org.theseed.stats.Shuffler;
 import org.theseed.utils.Parms;
 
 /**
