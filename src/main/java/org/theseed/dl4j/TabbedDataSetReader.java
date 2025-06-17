@@ -313,7 +313,7 @@ public class TabbedDataSetReader implements Iterable<DataSet>, Iterator<DataSet>
             if (haveLabels) {
                 labels.putRow(row, record.labelVals);
             }
-            if (haveMeta) metaData.add(String.join("\t", record.metaData));
+            if (metaData != null) metaData.add(String.join("\t", record.metaData));
             row++;
         }
         this.getBuffer().clear();

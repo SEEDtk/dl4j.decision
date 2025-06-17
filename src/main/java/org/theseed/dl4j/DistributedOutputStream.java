@@ -3,7 +3,6 @@
  */
 package org.theseed.dl4j;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -37,7 +36,7 @@ import org.theseed.dl4j.train.ITrainingProcessor;
  * @author Bruce Parrello
  *
  */
-public abstract class DistributedOutputStream implements Closeable, AutoCloseable {
+public abstract class DistributedOutputStream implements AutoCloseable {
 
     // FIELDS
     /** logging facility */
