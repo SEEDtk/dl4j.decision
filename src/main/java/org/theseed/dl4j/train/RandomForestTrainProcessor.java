@@ -148,8 +148,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
     private ClassMetric searchMetric;
 
     @Override
-    public boolean parseCommand(String[] args) {
-        boolean retVal = false;
+    public void parseCommand(String[] args) {
         // Set the defaults.
         this.setAllDefaults();
         // Parse the command line.
@@ -157,13 +156,10 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
             if (this.parseArgs(args)) {
                 this.setupTraining();
                 configureReader();
-                // We made it this far, we can run the application.
-                retVal = true;
             }
         } catch (IOException e) {
             System.err.println(e.toString());
         }
-        return retVal;
     }
 
     /**
