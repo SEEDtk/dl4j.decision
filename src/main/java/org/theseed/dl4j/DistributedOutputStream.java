@@ -19,8 +19,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.theseed.dl4j.train.ITrainingProcessor;
 
 /**
@@ -39,8 +37,6 @@ import org.theseed.dl4j.train.ITrainingProcessor;
 public abstract class DistributedOutputStream implements AutoCloseable {
 
     // FIELDS
-    /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(DistributedOutputStream.class);
     /** underlying output writer */
     private PrintWriter writer;
     /** label column index */
@@ -162,7 +158,7 @@ public abstract class DistributedOutputStream implements AutoCloseable {
      * @param size1		desired size of list1
      */
     public static void peel(List<String> list1, List<String> list2, int size1) {
-        while(list1.size() < size1 && list2.size() > 0)
+        while(list1.size() < size1 && ! list2.isEmpty())
             list1.add(list2.remove(list2.size() - 1));
     }
 
@@ -223,7 +219,7 @@ public abstract class DistributedOutputStream implements AutoCloseable {
             for (var map : mapList) {
                 for (String key : classMap.keySet()) {
                     if (! key.contentEquals(shortKey))
-                        map.put(key, new ArrayList<String>());
+                        map.put(key, new ArrayList<>());
                 }
             }
             // This will be our current position in the output maps.
@@ -244,7 +240,7 @@ public abstract class DistributedOutputStream implements AutoCloseable {
             }
             // Now we produce the output list.  We distribute each smaller map and append the result
             // to a line from the shortest-key list.
-            retVal = new ArrayList<String>();
+            retVal = new ArrayList<>();
             for (int i = 0; i < mapList.size(); i++) {
                 // Add the shortest-list line to the output.
                 retVal.add(shortestList.get(i));
@@ -307,11 +303,11 @@ public abstract class DistributedOutputStream implements AutoCloseable {
 
         // FIELDS
         /** buffer of input lines */
-        private Map<String, List<String>> lineMap;
+        private final Map<String, List<String>> lineMap;
 
         public Discrete() {
             // Create the line buffer.
-            this.lineMap = new HashMap<String, List<String>>();
+            this.lineMap = new HashMap<>();
         }
 
         @Override
@@ -334,13 +330,13 @@ public abstract class DistributedOutputStream implements AutoCloseable {
 
         // FIELDS
         /** buffer of input lines */
-        private SortedMap<Double, List<String>> lineMap;
+        private final SortedMap<Double, List<String>> lineMap;
         /** number of output classes to distribute */
         private static final int CONTINUOUS_CLASSES = 10;
 
         public Continuous() {
             // Create the line buffer.
-            this.lineMap = new TreeMap<Double, List<String>>();
+            this.lineMap = new TreeMap<>();
         }
 
         @Override
@@ -357,7 +353,7 @@ public abstract class DistributedOutputStream implements AutoCloseable {
             int size = total / CONTINUOUS_CLASSES + 1;
             // Now merge the existing classes into bigger ones, each of similar size.  (They don't
             // have to be exact, or even close.)
-            Map<String, List<String>> retVal = new HashMap<String, List<String>>(CONTINUOUS_CLASSES);
+            Map<String, List<String>> retVal = new HashMap<>(CONTINUOUS_CLASSES);
             int classIdx = 0;
             List<String> classList = createClassList(0, retVal, size);
             for (List<String> currList : this.lineMap.values()) {
@@ -379,7 +375,7 @@ public abstract class DistributedOutputStream implements AutoCloseable {
          */
         private List<String> createClassList(int classIdx, Map<String, List<String>> classMap, int size) {
             List<String> classList;
-            classList = new ArrayList<String>(size);
+            classList = new ArrayList<>(size);
             classMap.put(Integer.toString(classIdx), classList);
             return classList;
         }

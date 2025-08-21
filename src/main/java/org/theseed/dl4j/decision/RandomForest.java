@@ -40,7 +40,7 @@ public class RandomForest implements Serializable {
 
     // FIELDS
     /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(RandomForest.class);
+    private static final Logger log = LoggerFactory.getLogger(RandomForest.class);
     /** serialization version ID */
     private static final long serialVersionUID = -5802362692626598850L;
     /** random number generator */

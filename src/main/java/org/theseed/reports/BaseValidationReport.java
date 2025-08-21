@@ -28,7 +28,7 @@ public abstract class BaseValidationReport extends BaseReporter implements IVali
 
     // FIELDS
     /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(ClassValidationReport.class);
+    private static final Logger log = LoggerFactory.getLogger(ClassValidationReport.class);
     /** training set ID list */
     private Set<String> trained;
     /** column index of ID column in metadata columns, or -1 if there is no ID column */

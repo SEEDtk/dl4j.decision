@@ -83,7 +83,7 @@ public class RandomForestTrainProcessor extends ModelProcessor implements ITrain
 
     // FIELDS
     /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(RandomForestTrainProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(RandomForestTrainProcessor.class);
     /** trained model */
     private RandomForest model;
     /** hyper-parameters */

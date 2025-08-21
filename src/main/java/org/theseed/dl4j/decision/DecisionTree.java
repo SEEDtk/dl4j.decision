@@ -9,8 +9,6 @@ import java.util.List;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A decision tree is a serializable data structure that can be used to classify an item based on a set of
@@ -24,22 +22,20 @@ import org.slf4j.LoggerFactory;
 public class DecisionTree implements Serializable {
 
     // FIELDS
-    /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(DecisionTree.class);
     /** number of features */
-    private int nFeatures;
+    private final int nFeatures;
     /** number of classes */
-    private int nClasses;
+    private final int nClasses;
     /** root node */
-    private Node root;
+    private final Node root;
     /** number of nodes in tree */
     private int size;
     /** hyperparameters */
-    private transient RandomForest.Parms parms;
+    private final transient RandomForest.Parms parms;
     /** feature selector factory for training */
-    private transient TreeFeatureSelectorFactory factory;
+    private final transient TreeFeatureSelectorFactory factory;
     /** log base 2 factor */
-    private static double LOG2BASE = Math.log(2.0);
+    private static final double LOG2BASE = Math.log(2.0);
     /** object ID for serialization */
     private static final long serialVersionUID = 4184229432605504479L;
 
@@ -51,7 +47,7 @@ public class DecisionTree implements Serializable {
         /** serialization ID */
         private static final long serialVersionUID = 6974234637504879773L;
         /** entropy value at this node */
-        private double entropy;
+        private final double entropy;
 
         protected Node(double entropy) {
             this.entropy = entropy;
@@ -89,11 +85,11 @@ public class DecisionTree implements Serializable {
         /** serialization ID */
         private static final long serialVersionUID = -3772567268579272613L;
         /** index of deciding feature */
-        private int iFeature;
+        private final int iFeature;
         /** threshold (inclusive on the left) */
-        private double limit;
+        private final double limit;
         /** impurity gain */
-        private double gain;
+        private final double gain;
         /** left child */
         private Node left;
         /** right child */
@@ -189,7 +185,7 @@ public class DecisionTree implements Serializable {
 
         // FIELDS
         /** index of predicted class */
-        private int iClass;
+        private final int iClass;
         /** serialization type ID */
         private static final long serialVersionUID = 3328808945708275642L;
 
@@ -242,9 +238,6 @@ public class DecisionTree implements Serializable {
         this.parms = parms;
         this.factory = factory;
         this.size = 0;
-        // Compute the number of features to use in each tree.
-        int arraySize = parms.getNumFeatures();
-        if (this.nFeatures < arraySize) arraySize = this.nFeatures;
         // Compute the starting entropy.
         double entropy = DecisionTree.entropy(dataset);
         // Split the dataset into rows.
@@ -319,8 +312,8 @@ public class DecisionTree implements Serializable {
                 // Here we can split the node.
                 ChoiceNode newNode = best.createNode(entropy);
                 // Split the incoming dataset.
-                List<DataSet> left = new ArrayList<DataSet>(best.getLeftCount());
-                List<DataSet> right = new ArrayList<DataSet>(best.getRightCount());
+                List<DataSet> left = new ArrayList<>(best.getLeftCount());
+                List<DataSet> right = new ArrayList<>(best.getRightCount());
                 for (DataSet row : rows) {
                     if (best.splitsLeft(row))
                         left.add(row);
@@ -375,7 +368,7 @@ public class DecisionTree implements Serializable {
      */
     private static int bestLabel(List<DataSet> rows) {
         int retVal = 0;
-        if (rows.size() > 0) {
+        if (! rows.isEmpty()) {
             INDArray labelSums = rows.get(0).getLabels().dup();
             for (int i = 1; i < rows.size(); i++)
                 labelSums.addi(rows.get(i).getLabels());
@@ -435,6 +428,8 @@ public class DecisionTree implements Serializable {
             current = curr.choose(features, idx);
         }
         LeafNode curr = (LeafNode) current;
+        if (curr == null)
+            throw new IllegalStateException("Leaf node is null");
         return curr.getiClass();
     }
 

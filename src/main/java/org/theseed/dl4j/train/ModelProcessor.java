@@ -42,7 +42,7 @@ public abstract class ModelProcessor {
 
     // FIELDS
     /** logging facility */
-    protected static Logger log = LoggerFactory.getLogger(ModelProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(ModelProcessor.class);
     /** input file reader */
     protected TabbedDataSetReader reader;
     /** array of labels */
